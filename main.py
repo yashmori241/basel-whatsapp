@@ -76,7 +76,7 @@ def get_ai_reply(phone: str, message: str) -> str:
 
     # Get AI response
     response = gemini.models.generate_content(
-        model="gemini-2.0-flash",
+        model="gemini-1.5-flash",
         contents=SYSTEM_PROMPT + "\n\nConversation:\n" +
                  "\n".join([f"{m['role'].upper()}: {m['content']}" for m in messages])
     )
