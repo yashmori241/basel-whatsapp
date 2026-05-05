@@ -2,11 +2,10 @@ from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
 from supabase import create_client
 from google import genai
-import os
+import uuid as uuid_lib
 
 app = Flask(__name__)
 
-# Clients
 supabase = create_client(
     "https://uoddvpafzcnhbjeazqzd.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvZGR2cGFmemNuaGJqZWF6cXpkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzYwODkyNCwiZXhwIjoyMDkzMTg0OTI0fQ.ZVv3xBB5yKCmJkaOohn4MhfKz7KUgnoozqbrg0cxi8M"
@@ -43,11 +42,27 @@ RULES:
 If asked to book a tour, share: https://cal.com/yash-mori-6uzw04/property-tour"""
 
 
+def get_or_create_lead(phone: str) -> str:
+    existing = supabase.from_("leads").select("id").eq("phone", phone).execute()
+    if existing.data:
+        return existing.data[0]["id"]
+    lead_id = str(uuid_lib.uuid4())
+    supabase.from_("leads").insert({
+        "id": lead_id,
+        "phone": phone,
+        "channel": "whatsapp",
+        "status": "new"
+    }).execute()
+    return lead_id
+
+
 def get_ai_reply(phone: str, message: str) -> str:
+    lead_id = get_or_create_lead(phone)
+
     # Get conversation history
     history = supabase.from_("conversations")\
         .select("role, content")\
-        .eq("lead_id", phone)\
+        .eq("lead_id", lead_id)\
         .order("created_at")\
         .limit(10)\
         .execute()
@@ -62,23 +77,14 @@ def get_ai_reply(phone: str, message: str) -> str:
     # Get AI response
     response = gemini.models.generate_content(
         model="gemini-2.0-flash",
-        contents=SYSTEM_PROMPT + "\n\nConversation:\n" + 
+        contents=SYSTEM_PROMPT + "\n\nConversation:\n" +
                  "\n".join([f"{m['role'].upper()}: {m['content']}" for m in messages])
     )
     reply = response.text.strip()
 
-    # Save to Supabase
-    # Upsert lead
-    supabase.from_("leads").upsert({
-        "id": phone,
-        "phone": phone,
-        "channel": "whatsapp",
-        "status": "new"
-    }).execute()
-
     # Save user message
     supabase.from_("conversations").insert({
-        "lead_id": phone,
+        "lead_id": lead_id,
         "channel": "whatsapp",
         "direction": "inbound",
         "role": "user",
@@ -87,7 +93,7 @@ def get_ai_reply(phone: str, message: str) -> str:
 
     # Save Sofia reply
     supabase.from_("conversations").insert({
-        "lead_id": phone,
+        "lead_id": lead_id,
         "channel": "whatsapp",
         "direction": "outbound",
         "role": "assistant",
@@ -100,10 +106,8 @@ def get_ai_reply(phone: str, message: str) -> str:
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp():
     incoming = request.form.get("Body", "").strip()
-    phone    = request.form.get("From", "").replace("whatsapp:", "")
-
+    phone = request.form.get("From", "").replace("whatsapp:", "")
     reply = get_ai_reply(phone, incoming)
-
     resp = MessagingResponse()
     resp.message(reply)
     return str(resp)
