@@ -10,7 +10,7 @@ supabase = create_client(
     "https://uoddvpafzcnhbjeazqzd.supabase.co",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvZGR2cGFmemNuaGJqZWF6cXpkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzYwODkyNCwiZXhwIjoyMDkzMTg0OTI0fQ.ZVv3xBB5yKCmJkaOohn4MhfKz7KUgnoozqbrg0cxi8M"
 )
-gemini = genai.Client(api_key="AIzaSyDvTDrrA_GAIk_XrsZ_SP9O4NxmXIx7V0Y")
+gemini = genai.Client(api_key="AIzaSyCO-zl0Rvi4Fn-LBzzpsHZceAvxTV-vt6s")
 
 SYSTEM_PROMPT = """You are Sofia, the AI concierge for Basel Boutique Real Estate in Miami, Florida.
 
